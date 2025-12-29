@@ -1,0 +1,102 @@
+@model EcommerceDropshipping.ViewModels.Produit.EditProduitViewModel
+@{
+    ViewData["Title"] = "Modifier le produit";
+    Layout = "_AdminLayout";
+}
+
+<div class="mb-4">
+    <a href="/Admin/Produits" class="text-muted text-decoration-none">
+        <i class="fas fa-arrow-left me-2"></i>Retour aux produits
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-edit me-2"></i>Modifier le produit
+            </div>
+            <div class="card-body">
+                <form asp-action="EditProduit" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="Id" />
+                    <input type="hidden" asp-for="DateAjout" />
+                    
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="Titre" class="form-label"></label>
+                        <input asp-for="Titre" class="form-control" />
+                        <span asp-validation-for="Titre" class="text-danger small"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label"></label>
+                        <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+                        <span asp-validation-for="Description" class="text-danger small"></span>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Prix" class="form-label"></label>
+                            <div class="input-group">
+                                <input asp-for="Prix" class="form-control" />
+                                <span class="input-group-text">€</span>
+                            </div>
+                            <span asp-validation-for="Prix" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Stock" class="form-label"></label>
+                            <input asp-for="Stock" class="form-control" />
+                            <span asp-validation-for="Stock" class="text-danger small"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="FournisseurId" class="form-label"></label>
+                        <select asp-for="FournisseurId" asp-items="@ViewBag.Fournisseurs" class="form-select"></select>
+                        <span asp-validation-for="FournisseurId" class="text-danger small"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="ImageUrl" class="form-label"></label>
+                        <input asp-for="ImageUrl" class="form-control" />
+                        <span asp-validation-for="ImageUrl" class="text-danger small"></span>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input asp-for="EstActif" class="form-check-input" />
+                            <label asp-for="EstActif" class="form-check-label">
+                                Produit actif (visible sur le site)
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Enregistrer
+                        </button>
+                        <a href="/Admin/Produits" class="btn btn-outline-secondary">Annuler</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        @if (!string.IsNullOrEmpty(Model.ImageUrl))
+        {
+            <div class="card">
+                <div class="card-header">Aperçu</div>
+                <div class="card-body p-0">
+                    <img src="@Model.ImageUrl" alt="@Model.Titre" class="img-fluid">
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,95 @@
+@model EcommerceDropshipping.ViewModels.Commande.CommandeDetailsViewModel
+@{
+    ViewData["Title"] = "Détails de la commande";
+}
+
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/Client/Profile">Mon Profil</a></li>
+            <li class="breadcrumb-item"><a href="/Commande/MesCommandes">Mes Commandes</a></li>
+            <li class="breadcrumb-item active">#@Model.Id.ToString().Substring(0, 8).ToUpper()</li>
+        </ol>
+    </nav>
+    
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <!-- Order Info -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-info-circle me-2"></i>Informations</span>
+                    <span class="badge bg-@Model.StatutClass">@Model.StatutLabel</span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted d-block">Numéro de commande</small>
+                            <strong>#@Model.Id.ToString().Substring(0, 8).ToUpper()</strong>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted d-block">Date de commande</small>
+                            <strong>@Model.Date.ToString("dd/MM/yyyy à HH:mm")</strong>
+                        </div>
+                        <div class="col-12">
+                            <small class="text-muted d-block">Adresse de livraison</small>
+                            <strong>@Model.AdresseLivraison</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Order Items -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-shopping-bag me-2"></i>Articles commandés
+                </div>
+                <div class="card-body p-0">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Produit</th>
+                                <th>Prix unitaire</th>
+                                <th>Quantité</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ligne in Model.Lignes)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            @if (!string.IsNullOrEmpty(ligne.ProduitImage))
+                                            {
+                                                <img src="@ligne.ProduitImage" alt="@ligne.ProduitTitre" 
+                                                     style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;" class="me-3">
+                                            }
+                                            <a href="/Produit/Details/@ligne.ProduitId" class="text-dark text-decoration-none">
+                                                @ligne.ProduitTitre
+                                            </a>
+                                        </div>
+                                    </td>
+                                    <td>@ligne.PrixUnitaire.ToString("C", new System.Globalization.CultureInfo("fr-FR"))</td>
+                                    <td>@ligne.Quantite</td>
+                                    <td class="text-end fw-semibold">@ligne.Total.ToString("C", new System.Globalization.CultureInfo("fr-FR"))</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="checkout-summary">
+                <h5 class="mb-4">Total</h5>
+                <div class="checkout-item border-0 pt-0">
+                    <span class="checkout-total">Montant total</span>
+                    <span class="checkout-total">
+                        @Model.MontantTotal.ToString("C", new System.Globalization.CultureInfo("fr-FR"))
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

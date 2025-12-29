@@ -1,0 +1,145 @@
+@model List<EcommerceDropshipping.ViewModels.Produit.ProduitListItemViewModel>
+@{
+    ViewData["Title"] = "Accueil";
+}
+
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="hero-title">Découvrez notre collection exclusive</h1>
+                <p class="hero-subtitle">Des produits de qualité, livrés directement chez vous. Profitez de la livraison gratuite dès 50€ d'achat.</p>
+                <div class="d-flex gap-3">
+                    <a href="/Produit" class="btn btn-warning btn-lg">
+                        <i class="fas fa-shopping-bag me-2"></i>Voir le catalogue
+                    </a>
+                    <a href="#featured" class="btn btn-outline-light btn-lg">
+                        En savoir plus
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6 d-none d-lg-block text-center">
+                <i class="fas fa-shopping-cart" style="font-size: 12rem; opacity: 0.2;"></i>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section class="py-4 bg-white border-bottom">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-md-3 mb-3 mb-md-0">
+                <i class="fas fa-truck text-primary fa-2x mb-2"></i>
+                <h6 class="mb-1">Livraison rapide</h6>
+                <small class="text-muted">Gratuite dès 50€</small>
+            </div>
+            <div class="col-md-3 mb-3 mb-md-0">
+                <i class="fas fa-shield-alt text-primary fa-2x mb-2"></i>
+                <h6 class="mb-1">Paiement sécurisé</h6>
+                <small class="text-muted">100% sécurisé</small>
+            </div>
+            <div class="col-md-3 mb-3 mb-md-0">
+                <i class="fas fa-undo text-primary fa-2x mb-2"></i>
+                <h6 class="mb-1">Retours gratuits</h6>
+                <small class="text-muted">Sous 30 jours</small>
+            </div>
+            <div class="col-md-3">
+                <i class="fas fa-headset text-primary fa-2x mb-2"></i>
+                <h6 class="mb-1">Support 24/7</h6>
+                <small class="text-muted">À votre écoute</small>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Featured Products -->
+<section id="featured" class="py-5">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold mb-1">Produits vedettes</h2>
+                <p class="text-muted mb-0">Découvrez nos dernières nouveautés</p>
+            </div>
+            <a href="/Produit" class="btn btn-outline-primary">
+                Voir tout <i class="fas fa-arrow-right ms-1"></i>
+            </a>
+        </div>
+        
+        <div class="row g-4">
+            @foreach (var produit in Model)
+            {
+                <div class="col-lg-3 col-md-4 col-sm-6">
+                    <div class="product-card">
+                        <div class="card-img-wrapper">
+                            @if (!string.IsNullOrEmpty(produit.ImageUrl))
+                            {
+                                <img src="@produit.ImageUrl" class="card-img-top" alt="@produit.Titre">
+                            }
+                            else
+                            {
+                                <div class="d-flex align-items-center justify-content-center h-100 bg-light">
+                                    <i class="fas fa-image fa-3x text-muted"></i>
+                                </div>
+                            }
+                            <div class="badge-wrapper">
+                                @if (produit.EstNouveau)
+                                {
+                                    <span class="badge-new">Nouveau</span>
+                                }
+                                @if (produit.StockLimite)
+                                {
+                                    <span class="badge-low-stock">Stock limité</span>
+                                }
+                                @if (!produit.EnStock)
+                                {
+                                    <span class="badge-out-of-stock">Rupture</span>
+                                }
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <a href="/Produit/Details/@produit.Id">@produit.Titre</a>
+                            </h5>
+                            <p class="card-text">@produit.DescriptionCourte</p>
+                            <div class="d-flex justify-content-between align-items-center mt-auto">
+                                <span class="price">@produit.Prix.ToString("C", new System.Globalization.CultureInfo("fr-FR"))</span>
+                                @if (produit.EnStock)
+                                {
+                                    <form asp-controller="Panier" asp-action="Ajouter" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="produitId" value="@produit.Id" />
+                                        <button type="submit" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-cart-plus"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<!-- Call to Action -->
+<section class="py-5 bg-primary text-white">
+    <div class="container text-center">
+        <h3 class="mb-3">Prêt à commencer vos achats ?</h3>
+        <p class="mb-4 opacity-75">Inscrivez-vous maintenant et profitez de nos offres exclusives</p>
+        @if (!User.Identity?.IsAuthenticated ?? true)
+        {
+            <a href="/Client/Register" class="btn btn-warning btn-lg">
+                <i class="fas fa-user-plus me-2"></i>Créer un compte
+            </a>
+        }
+        else
+        {
+            <a href="/Produit" class="btn btn-warning btn-lg">
+                <i class="fas fa-shopping-bag me-2"></i>Explorer le catalogue
+            </a>
+        }
+    </div>
+</section>

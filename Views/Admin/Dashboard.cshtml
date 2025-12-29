@@ -1,0 +1,202 @@
+@model EcommerceDropshipping.ViewModels.Admin.DashboardViewModel
+@{
+    ViewData["Title"] = "Tableau de bord";
+    Layout = "_AdminLayout";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Tableau de bord</h2>
+    <span class="text-muted">@DateTime.Now.ToString("dddd dd MMMM yyyy", new System.Globalization.CultureInfo("fr-FR"))</span>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon blue">
+                <i class="fas fa-shopping-cart"></i>
+            </div>
+            <div>
+                <div class="stat-value">@Model.TotalCommandes</div>
+                <div class="stat-label">Commandes totales</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon orange">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div>
+                <div class="stat-value">@Model.CommandesEnAttente</div>
+                <div class="stat-label">En attente</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon green">
+                <i class="fas fa-euro-sign"></i>
+            </div>
+            <div>
+                <div class="stat-value">@Model.RevenusMois.ToString("N0")€</div>
+                <div class="stat-label">Revenus ce mois</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon purple">
+                <i class="fas fa-users"></i>
+            </div>
+            <div>
+                <div class="stat-value">@Model.TotalClients</div>
+                <div class="stat-label">Clients inscrits</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Second Row -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon blue">
+                <i class="fas fa-box"></i>
+            </div>
+            <div>
+                <div class="stat-value">@Model.ProduitsActifs / @Model.TotalProduits</div>
+                <div class="stat-label">Produits actifs</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon orange">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div>
+                <div class="stat-value">@Model.ProduitsStockFaible</div>
+                <div class="stat-label">Stock faible</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon green">
+                <i class="fas fa-truck"></i>
+            </div>
+            <div>
+                <div class="stat-value">@Model.TotalFournisseurs</div>
+                <div class="stat-label">Fournisseurs</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon purple">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div>
+                <div class="stat-value">@Model.RevenusTotal.ToString("N0")€</div>
+                <div class="stat-label">Revenus totaux</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Recent Orders -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-clock me-2"></i>Commandes récentes</span>
+                <a href="/Admin/Commandes" class="btn btn-sm btn-outline-primary">Voir tout</a>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.CommandesRecentes.Any())
+                {
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Client</th>
+                                <th>Date</th>
+                                <th>Montant</th>
+                                <th>Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var commande in Model.CommandesRecentes)
+                            {
+                                <tr>
+                                    <td>
+                                        <a href="/Admin/CommandeDetails/@commande.Id" class="text-dark text-decoration-none">
+                                            @commande.ClientNom
+                                        </a>
+                                    </td>
+                                    <td>@commande.Date.ToString("dd/MM HH:mm")</td>
+                                    <td><strong>@commande.Montant.ToString("C", new System.Globalization.CultureInfo("fr-FR"))</strong></td>
+                                    <td><span class="badge bg-@commande.StatutClass">@commande.Statut</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                        <p>Aucune commande récente</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top Products -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-star me-2"></i>Produits populaires
+            </div>
+            <div class="card-body p-0">
+                @if (Model.ProduitsPopulaires.Any())
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach (var produit in Model.ProduitsPopulaires)
+                        {
+                            <li class="list-group-item d-flex align-items-center">
+                                @if (!string.IsNullOrEmpty(produit.ImageUrl))
+                                {
+                                    <img src="@produit.ImageUrl" alt="@produit.Titre" 
+                                         style="width: 40px; height: 40px; object-fit: cover; border-radius: 8px;" class="me-3">
+                                }
+                                else
+                                {
+                                    <div class="bg-light rounded d-flex align-items-center justify-content-center me-3" 
+                                         style="width: 40px; height: 40px;">
+                                        <i class="fas fa-image text-muted"></i>
+                                    </div>
+                                }
+                                <div class="flex-grow-1">
+                                    <div class="fw-semibold">@produit.Titre</div>
+                                    <small class="text-muted">@produit.VentesTotal vendus</small>
+                                </div>
+                                <span class="text-success fw-semibold">
+                                    @produit.RevenusTotal.ToString("N0")€
+                                </span>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-chart-bar fa-2x mb-2"></i>
+                        <p>Pas encore de données</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

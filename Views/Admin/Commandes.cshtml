@@ -1,0 +1,79 @@
+@model List<EcommerceDropshipping.ViewModels.Commande.CommandeListItemViewModel>
+@{
+    ViewData["Title"] = "Gestion des commandes";
+    Layout = "_AdminLayout";
+    var statutFilter = ViewBag.StatutFilter as EcommerceDropshipping.Models.Domain.Enums.StatutCommande?;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">
+        <i class="fas fa-shopping-cart me-2"></i>Commandes
+    </h2>
+    <div class="btn-group">
+        <a href="/Admin/Commandes" class="btn btn-sm @(statutFilter == null ? "btn-primary" : "btn-outline-primary")">
+            Toutes
+        </a>
+        <a href="/Admin/Commandes?statut=EnAttente" class="btn btn-sm @(statutFilter?.ToString() == "EnAttente" ? "btn-warning" : "btn-outline-warning")">
+            En attente
+        </a>
+        <a href="/Admin/Commandes?statut=EnCours" class="btn btn-sm @(statutFilter?.ToString() == "EnCours" ? "btn-info" : "btn-outline-info")">
+            En cours
+        </a>
+        <a href="/Admin/Commandes?statut=Expediee" class="btn btn-sm @(statutFilter?.ToString() == "Expediee" ? "btn-primary" : "btn-outline-primary")">
+            Expédiées
+        </a>
+        <a href="/Admin/Commandes?statut=Livree" class="btn btn-sm @(statutFilter?.ToString() == "Livree" ? "btn-success" : "btn-outline-success")">
+            Livrées
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        @if (Model.Any())
+        {
+            <table class="table mb-0">
+                <thead>
+                    <tr>
+                        <th>N° Commande</th>
+                        <th>Client</th>
+                        <th>Date</th>
+                        <th>Articles</th>
+                        <th>Total</th>
+                        <th>Statut</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var commande in Model)
+                    {
+                        <tr>
+                            <td><strong>#@commande.Id.ToString().Substring(0, 8).ToUpper()</strong></td>
+                            <td>
+                                <div>@commande.ClientNom</div>
+                                <small class="text-muted">@commande.ClientEmail</small>
+                            </td>
+                            <td>@commande.Date.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>@commande.NombreArticles</td>
+                            <td><strong>@commande.MontantTotal.ToString("C", new System.Globalization.CultureInfo("fr-FR"))</strong></td>
+                            <td><span class="badge bg-@commande.StatutClass">@commande.StatutLabel</span></td>
+                            <td>
+                                <a href="/Admin/CommandeDetails/@commande.Id" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye me-1"></i>Détails
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <h5>Aucune commande</h5>
+                <p class="text-muted">Les commandes apparaîtront ici</p>
+            </div>
+        }
+    </div>
+</div>
