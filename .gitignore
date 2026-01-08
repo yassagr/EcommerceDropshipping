@@ -1,0 +1,43 @@
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio files
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# NuGet Packages
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+
+# Build results of an ideproject
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# SQL Server files
+*.mdf
+*.ldf
+*.ndf
+
+# Project-specific
+launchSettings.json
+appsettings.Development.json
+
+# dotnet
+project.lock.json
+project.fragment.lock.json
+artifacts/

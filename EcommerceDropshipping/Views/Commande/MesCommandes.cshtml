@@ -1,0 +1,64 @@
+@model List<EcommerceDropshipping.ViewModels.Commande.CommandeListItemViewModel>
+@{
+    ViewData["Title"] = "Mes Commandes";
+}
+
+<div class="container py-4">
+    <h2 class="mb-4">
+        <i class="fas fa-box me-2"></i>Mes Commandes
+    </h2>
+    
+    @if (Model.Any())
+    {
+        <div class="card">
+            <div class="card-body p-0">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th>N° Commande</th>
+                            <th>Date</th>
+                            <th>Articles</th>
+                            <th>Total</th>
+                            <th>Statut</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var commande in Model)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>#@commande.Id.ToString().Substring(0, 8).ToUpper()</strong>
+                                </td>
+                                <td>@commande.Date.ToString("dd/MM/yyyy")</td>
+                                <td>@commande.NombreArticles article(s)</td>
+                                <td>
+                                    <strong>@commande.MontantTotal.ToString("C", new System.Globalization.CultureInfo("fr-FR"))</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-@commande.StatutClass">@commande.StatutLabel</span>
+                                </td>
+                                <td>
+                                    <a href="/Commande/Details/@commande.Id" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i>Détails
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <i class="fas fa-box-open"></i>
+            <h3>Aucune commande</h3>
+            <p>Vous n'avez pas encore passé de commande</p>
+            <a href="/Produit" class="btn btn-primary">
+                <i class="fas fa-shopping-bag me-2"></i>Découvrir nos produits
+            </a>
+        </div>
+    }
+</div>

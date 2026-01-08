@@ -1,0 +1,66 @@
+@model EcommerceDropshipping.ViewModels.Adresse.AddAdresseViewModel
+@{
+    ViewData["Title"] = "Ajouter une adresse";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-map-marker-alt me-2"></i>Nouvelle adresse
+                </div>
+                <div class="card-body">
+                    <form asp-action="AddAdresse" method="post">
+                        @Html.AntiForgeryToken()
+                        
+                        <div class="mb-3">
+                            <label asp-for="Rue" class="form-label"></label>
+                            <input asp-for="Rue" class="form-control" placeholder="123 Rue de Paris" />
+                            <span asp-validation-for="Rue" class="text-danger small"></span>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="CodePostal" class="form-label"></label>
+                                <input asp-for="CodePostal" class="form-control" placeholder="75001" />
+                                <span asp-validation-for="CodePostal" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-8 mb-3">
+                                <label asp-for="Ville" class="form-label"></label>
+                                <input asp-for="Ville" class="form-control" placeholder="Paris" />
+                                <span asp-validation-for="Ville" class="text-danger small"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label asp-for="Pays" class="form-label"></label>
+                            <input asp-for="Pays" class="form-control" />
+                            <span asp-validation-for="Pays" class="text-danger small"></span>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input asp-for="EstPrincipale" class="form-check-input" />
+                                <label asp-for="EstPrincipale" class="form-check-label">
+                                    Définir comme adresse principale
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>Enregistrer
+                            </button>
+                            <a href="/Client/Adresses" class="btn btn-outline-secondary">Annuler</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
