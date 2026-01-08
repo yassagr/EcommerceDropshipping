@@ -16,6 +16,8 @@ namespace EcommerceDropshipping.Data
         public DbSet<Produit> Produits { get; set; }
         public DbSet<Commande> Commandes { get; set; }
         public DbSet<LigneCommande> LignesCommande { get; set; }
+        public DbSet<Panier> Paniers { get; set; }
+        public DbSet<LignePanier> LignesPanier { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -103,6 +105,35 @@ namespace EcommerceDropshipping.Data
                       .WithMany(p => p.LignesCommande)
                       .HasForeignKey(e => e.ProduitId)
                       .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Panier configuration
+            modelBuilder.Entity<Panier>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.DateCreation).HasDefaultValueSql("GETDATE()");
+                entity.Property(e => e.DateModification).HasDefaultValueSql("GETDATE()");
+                entity.HasOne(e => e.Client)
+                      .WithMany()
+                      .HasForeignKey(e => e.ClientId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(e => e.ClientId).IsUnique();
+            });
+
+            // LignePanier configuration
+            modelBuilder.Entity<LignePanier>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.DateAjout).HasDefaultValueSql("GETDATE()");
+                entity.HasOne(e => e.Panier)
+                      .WithMany(p => p.LignesPanier)
+                      .HasForeignKey(e => e.PanierId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Produit)
+                      .WithMany()
+                      .HasForeignKey(e => e.ProduitId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(e => new { e.PanierId, e.ProduitId }).IsUnique();
             });
         }
     }

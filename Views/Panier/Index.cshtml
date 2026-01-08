@@ -1,161 +1,121 @@
 @model EcommerceDropshipping.ViewModels.Panier.PanierViewModel
+
 @{
     ViewData["Title"] = "Mon Panier";
 }
 
-<div class="container py-4">
-    <h2 class="mb-4">
-        <i class="fas fa-shopping-cart me-2"></i>Mon Panier
-    </h2>
-    
-    @if (!Model.EstVide)
+<div class="container my-5">
+    <h1 class="mb-4"><i class="fas fa-shopping-cart me-2"></i>Mon Panier</h1>
+
+    @if (Model.Items.Any())
     {
-        <!-- Free shipping banner -->
-        @if (!Model.LivraisonGratuite)
-        {
-            <div class="alert alert-info mb-4">
-                <i class="fas fa-truck me-2"></i>
-                Plus que <strong>@Model.MontantPourLivraisonGratuite.ToString("C", new System.Globalization.CultureInfo("fr-FR"))</strong> 
-                pour bénéficier de la livraison gratuite !
-                <div class="shipping-progress mt-2">
-                    <div class="shipping-progress-bar" style="width: @((Model.SousTotal / 50 * 100))%;"></div>
-                </div>
-            </div>
-        }
-        else
-        {
-            <div class="alert alert-success mb-4">
-                <i class="fas fa-check-circle me-2"></i>
-                Félicitations ! Vous bénéficiez de la <strong>livraison gratuite</strong> !
-            </div>
-        }
-        
-        <div class="row g-4">
-            <!-- Cart Items -->
+        <div class="row">
             <div class="col-lg-8">
-                <div class="card">
+                <div class="card shadow-sm">
                     <div class="card-body p-0">
-                        <table class="table cart-table mb-0">
-                            <thead>
-                                <tr>
-                                    <th style="width: 50%;">Produit</th>
-                                    <th>Prix</th>
-                                    <th>Quantité</th>
-                                    <th>Total</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var item in Model.Items)
-                                {
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                @if (!string.IsNullOrEmpty(item.ImageUrl))
-                                                {
-                                                    <img src="@item.ImageUrl" alt="@item.Titre" class="me-3">
-                                                }
-                                                else
-                                                {
-                                                    <div class="bg-light rounded d-flex align-items-center justify-content-center me-3" 
-                                                         style="width: 80px; height: 80px;">
-                                                        <i class="fas fa-image text-muted"></i>
-                                                    </div>
-                                                }
-                                                <div>
-                                                    <a href="/Produit/Details/@item.ProduitId" class="fw-semibold text-dark text-decoration-none">
-                                                        @item.Titre
-                                                    </a>
-                                                    @if (item.StockDisponible < 10)
-                                                    {
-                                                        <small class="text-warning d-block">
-                                                            <i class="fas fa-exclamation-triangle me-1"></i>Plus que @item.StockDisponible en stock
-                                                        </small>
-                                                    }
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="align-middle">
-                                            @item.Prix.ToString("C", new System.Globalization.CultureInfo("fr-FR"))
-                                        </td>
-                                        <td class="align-middle">
-                                            <form asp-action="Modifier" method="post" class="d-flex align-items-center gap-2">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="produitId" value="@item.ProduitId" />
-                                                <input type="number" name="quantite" value="@item.Quantite" 
-                                                       min="1" max="@item.StockDisponible" 
-                                                       class="form-control cart-quantity" 
-                                                       onchange="this.form.submit()">
-                                            </form>
-                                        </td>
-                                        <td class="align-middle fw-semibold">
-                                            @item.Total.ToString("C", new System.Globalization.CultureInfo("fr-FR"))
-                                        </td>
-                                        <td class="align-middle">
-                                            <form asp-action="Supprimer" method="post">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="produitId" value="@item.ProduitId" />
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
+                        @foreach (var item in Model.Items)
+                        {
+                            <div class="d-flex align-items-center border-bottom p-3">
+                                <div style="width: 80px; height: 80px;" class="me-3">
+                                    @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                    {
+                                        <img src="@item.ImageUrl" alt="@item.Titre" class="img-fluid rounded" 
+                                             style="width: 100%; height: 100%; object-fit: cover;">
+                                    }
+                                    else
+                                    {
+                                        <div class="bg-light rounded d-flex align-items-center justify-content-center h-100">
+                                            <i class="fas fa-image text-muted"></i>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">@item.Titre</h6>
+                                    <p class="text-primary fw-bold mb-0">
+                                        @item.Prix.ToString("C", new System.Globalization.CultureInfo("fr-FR"))
+                                    </p>
+                                    <small class="text-muted">Stock disponible: @item.StockDisponible</small>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <form asp-action="Modifier" method="post" class="d-flex align-items-center">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="produitId" value="@item.ProduitId" />
+                                        <div class="input-group" style="width: 130px;">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                                    onclick="updateQuantity(this, -1, @item.StockDisponible)">-</button>
+                                            <input type="number" name="quantite" value="@item.Quantite" 
+                                                   min="1" max="@item.StockDisponible" 
+                                                   class="form-control form-control-sm text-center">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                                    onclick="updateQuantity(this, 1, @item.StockDisponible)">+</button>
+                                        </div>
+                                        <button type="submit" class="btn btn-sm btn-primary ms-2">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                <div class="text-end ms-3" style="min-width: 100px;">
+                                    <p class="fw-bold mb-1">
+                                        @item.SousTotal.ToString("C", new System.Globalization.CultureInfo("fr-FR"))
+                                    </p>
+                                    <form asp-action="Supprimer" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="produitId" value="@item.ProduitId" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                onclick="return confirm('Retirer cet article ?')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        }
                     </div>
                 </div>
                 
-                <div class="d-flex justify-content-between mt-3">
-                    <a href="/Produit" class="btn btn-outline-primary">
-                        <i class="fas fa-arrow-left me-2"></i>Continuer mes achats
-                    </a>
+                <div class="mt-3 d-flex gap-2">
                     <form asp-action="Vider" method="post">
                         @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-outline-danger" 
+                        <button type="submit" class="btn btn-outline-danger"
                                 onclick="return confirm('Vider tout le panier ?')">
-                            <i class="fas fa-trash me-2"></i>Vider le panier
+                            <i class="fas fa-trash-alt me-1"></i>Vider le panier
                         </button>
                     </form>
+                    
+                    <a asp-controller="Produit" asp-action="Index" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Continuer mes achats
+                    </a>
                 </div>
             </div>
-            
-            <!-- Order Summary -->
+
             <div class="col-lg-4">
-                <div class="checkout-summary">
-                    <h5 class="mb-4">Récapitulatif</h5>
-                    
-                    <div class="checkout-item">
-                        <span>Sous-total (@Model.NombreArticles articles)</span>
-                        <span>@Model.SousTotal.ToString("C", new System.Globalization.CultureInfo("fr-FR"))</span>
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Résumé</h5>
                     </div>
-                    
-                    <div class="checkout-item">
-                        <span>Livraison</span>
-                        @if (Model.LivraisonGratuite)
-                        {
-                            <span class="text-success">Gratuite</span>
-                        }
-                        else
-                        {
-                            <span>@Model.FraisLivraison.ToString("C", new System.Globalization.CultureInfo("fr-FR"))</span>
-                        }
-                    </div>
-                    
-                    <div class="checkout-item border-top pt-3 mt-3">
-                        <span class="checkout-total">Total</span>
-                        <span class="checkout-total">@Model.Total.ToString("C", new System.Globalization.CultureInfo("fr-FR"))</span>
-                    </div>
-                    
-                    <a href="/Commande/Checkout" class="btn btn-primary w-100 btn-lg mt-4">
-                        <i class="fas fa-credit-card me-2"></i>Passer commande
-                    </a>
-                    
-                    <div class="text-center mt-3">
-                        <small class="text-muted">
-                            <i class="fas fa-lock me-1"></i>Paiement 100% sécurisé
-                        </small>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Articles (@Model.NombreArticles)</span>
+                            <span>@Model.Total.ToString("C", new System.Globalization.CultureInfo("fr-FR"))</span>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>Livraison</span>
+                            <span class="text-success fw-bold">Gratuite</span>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="d-flex justify-content-between mb-4">
+                            <strong class="fs-5">Total</strong>
+                            <strong class="text-primary fs-4">
+                                @Model.Total.ToString("C", new System.Globalization.CultureInfo("fr-FR"))
+                            </strong>
+                        </div>
+                        
+                        <a asp-controller="Commande" asp-action="Checkout" 
+                           class="btn btn-warning btn-lg w-100">
+                            <i class="fas fa-credit-card me-2"></i>Passer la commande
+                        </a>
                     </div>
                 </div>
             </div>
@@ -163,13 +123,25 @@
     }
     else
     {
-        <div class="empty-state">
-            <i class="fas fa-shopping-cart"></i>
+        <div class="text-center py-5">
+            <i class="fas fa-shopping-cart fa-5x text-muted mb-4"></i>
             <h3>Votre panier est vide</h3>
-            <p>Parcourez notre catalogue pour trouver des produits qui vous plaisent</p>
-            <a href="/Produit" class="btn btn-primary btn-lg">
+            <p class="text-muted mb-4">Découvrez nos produits et ajoutez-les à votre panier</p>
+            <a asp-controller="Produit" asp-action="Index" class="btn btn-primary btn-lg">
                 <i class="fas fa-shopping-bag me-2"></i>Découvrir nos produits
             </a>
         </div>
     }
 </div>
+
+@section Scripts {
+<script>
+function updateQuantity(btn, change, maxStock) {
+    var input = btn.parentElement.querySelector('input[name="quantite"]');
+    var newValue = parseInt(input.value) + change;
+    if (newValue >= 1 && newValue <= maxStock) {
+        input.value = newValue;
+    }
+}
+</script>
+}

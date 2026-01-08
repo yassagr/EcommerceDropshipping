@@ -137,4 +137,5 @@ C:\Users\yasse\Documents\dotnet\EcommerceDropshipping\EcommerceDropshipping\obj\
 C:\Users\yasse\Documents\dotnet\EcommerceDropshipping\EcommerceDropshipping\obj\Debug\net8.0\EcommerceDropshipping.pdb
 C:\Users\yasse\Documents\dotnet\EcommerceDropshipping\EcommerceDropshipping\obj\Debug\net8.0\EcommerceDropshipping.genruntimeconfig.cache
 C:\Users\yasse\Documents\dotnet\EcommerceDropshipping\EcommerceDropshipping\obj\Debug\net8.0\ref\EcommerceDropshipping.dll
+C:\Users\yasse\Documents\dotnet\EcommerceDropshipping\EcommerceDropshipping\obj\Debug\net8.0\EcommerceDropshipping.sourcelink.json
 C:\Users\yasse\Documents\dotnet\EcommerceDropshipping\EcommerceDropshipping\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt

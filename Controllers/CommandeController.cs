@@ -8,7 +8,6 @@ using EcommerceDropshipping.Models.Domain.Enums;
 using EcommerceDropshipping.ViewModels.Commande;
 using EcommerceDropshipping.ViewModels.Panier;
 using EcommerceDropshipping.ViewModels.Adresse;
-using EcommerceDropshipping.Helpers;
 
 namespace EcommerceDropshipping.Controllers
 {
@@ -16,7 +15,6 @@ namespace EcommerceDropshipping.Controllers
     public class CommandeController : Controller
     {
         private readonly AppDbContext _context;
-        private const string PanierSessionKey = "Panier";
 
         public CommandeController(AppDbContext context)
         {
@@ -26,35 +24,28 @@ namespace EcommerceDropshipping.Controllers
         // GET: /Commande/Checkout
         public async Task<IActionResult> Checkout()
         {
-            var panierItems = HttpContext.Session.GetObjectFromJson<List<PanierItemViewModel>>(PanierSessionKey)
-                              ?? new List<PanierItemViewModel>();
+            var clientId = GetClientId();
+            
+            // Get cart from database
+            var lignesPanier = await ObtenirLignesPanierAvecProduitsAsync(clientId);
 
-            if (!panierItems.Any())
+            if (!lignesPanier.Any())
             {
                 TempData["ErrorMessage"] = "Votre panier est vide";
                 return RedirectToAction("Index", "Panier");
             }
 
-            // Refresh cart with current prices
-            var produitIds = panierItems.Select(i => i.ProduitId).ToList();
-            var produits = await _context.Produits
-                .Where(p => produitIds.Contains(p.Id))
-                .ToDictionaryAsync(p => p.Id);
-
-            foreach (var item in panierItems)
+            // Convert to PanierItemViewModel
+            var panierItems = lignesPanier.Select(lp => new PanierItemViewModel
             {
-                if (produits.TryGetValue(item.ProduitId, out var produit))
-                {
-                    item.Prix = produit.Prix;
-                    item.Titre = produit.Titre;
-                    item.ImageUrl = produit.ImageUrl;
-                    item.StockDisponible = produit.Stock;
-                }
-            }
+                ProduitId = lp.ProduitId,
+                Titre = lp.Produit.Titre,
+                ImageUrl = lp.Produit.ImageUrl,
+                Prix = lp.Produit.Prix,
+                Quantite = lp.Quantite,
+                StockDisponible = lp.Produit.Stock
+            }).ToList();
 
-            HttpContext.Session.SetObjectAsJson(PanierSessionKey, panierItems);
-
-            var clientId = GetClientId();
             var adresses = await _context.Adresses
                 .Where(a => a.ClientId == clientId)
                 .Select(a => new AdresseListItemViewModel
@@ -70,12 +61,17 @@ namespace EcommerceDropshipping.Controllers
 
             var viewModel = new CheckoutViewModel
             {
-                Panier = new PanierViewModel { Items = panierItems },
+                Panier = new PanierViewModel 
+                { 
+                    Items = panierItems,
+                    Total = await CalculerTotalAsync(clientId),
+                    NombreArticles = await ObtenirNombreArticlesAsync(clientId)
+                },
                 AdressesDisponibles = adresses,
                 AdresseLivraisonId = adresses.FirstOrDefault(a => a.EstPrincipale)?.Id ?? adresses.FirstOrDefault()?.Id
             };
 
-            ViewBag.CartCount = panierItems.Sum(i => i.Quantite);
+            ViewBag.CartCount = viewModel.Panier.NombreArticles;
             return View(viewModel);
         }
 
@@ -84,16 +80,16 @@ namespace EcommerceDropshipping.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Checkout(CheckoutViewModel model)
         {
-            var panierItems = HttpContext.Session.GetObjectFromJson<List<PanierItemViewModel>>(PanierSessionKey)
-                              ?? new List<PanierItemViewModel>();
+            var clientId = GetClientId();
+            
+            // Get cart from database
+            var lignesPanier = await ObtenirLignesPanierAvecProduitsAsync(clientId);
 
-            if (!panierItems.Any())
+            if (!lignesPanier.Any())
             {
                 TempData["ErrorMessage"] = "Votre panier est vide";
                 return RedirectToAction("Index", "Panier");
             }
-
-            var clientId = GetClientId();
 
             // Handle new address creation
             if (model.CreerNouvelleAdresse && model.NouvelleAdresse != null)
@@ -103,7 +99,7 @@ namespace EcommerceDropshipping.Controllers
                     string.IsNullOrWhiteSpace(model.NouvelleAdresse.CodePostal))
                 {
                     ModelState.AddModelError("", "Veuillez remplir tous les champs de l'adresse");
-                    return await ReloadCheckoutView(panierItems, clientId);
+                    return await ReloadCheckoutView(clientId);
                 }
 
                 var nouvelleAdresse = new Adresse
@@ -126,7 +122,7 @@ namespace EcommerceDropshipping.Controllers
             if (!model.AdresseLivraisonId.HasValue)
             {
                 ModelState.AddModelError("", "Veuillez sélectionner une adresse de livraison");
-                return await ReloadCheckoutView(panierItems, clientId);
+                return await ReloadCheckoutView(clientId);
             }
 
             // Verify address belongs to client
@@ -136,48 +132,44 @@ namespace EcommerceDropshipping.Controllers
             if (adresseLivraison == null)
             {
                 ModelState.AddModelError("", "Adresse invalide");
-                return await ReloadCheckoutView(panierItems, clientId);
+                return await ReloadCheckoutView(clientId);
             }
 
-            // ========= ORDER CREATION FLOW (as per sequence diagram) =========
-
+            // ========= ORDER CREATION FLOW =========
             var lignesCommande = new List<LigneCommande>();
             decimal montantTotal = 0;
 
-            // For each item in cart: verify price and stock
-            foreach (var item in panierItems)
+            foreach (var lignePanier in lignesPanier)
             {
-                // Step 3: VerifierPrixActuel(idProduit)
-                var produit = await _context.Produits.FindAsync(item.ProduitId);
+                var produit = lignePanier.Produit;
 
                 if (produit == null || !produit.EstActif)
                 {
-                    TempData["ErrorMessage"] = $"Le produit '{item.Titre}' n'est plus disponible";
+                    TempData["ErrorMessage"] = $"Le produit '{lignePanier.Produit?.Titre}' n'est plus disponible";
                     return RedirectToAction("Index", "Panier");
                 }
 
-                if (produit.Stock < item.Quantite)
+                if (produit.Stock < lignePanier.Quantite)
                 {
                     TempData["ErrorMessage"] = $"Stock insuffisant pour '{produit.Titre}'. Disponible: {produit.Stock}";
                     return RedirectToAction("Index", "Panier");
                 }
 
-                // Step 4: Retourner Prix - Use CURRENT price from DB
                 var ligneCommande = new LigneCommande
                 {
                     Id = Guid.NewGuid(),
                     ProduitId = produit.Id,
-                    Quantite = item.Quantite,
-                    PrixUnitaire = produit.Prix // Price at moment of order
+                    Quantite = lignePanier.Quantite,
+                    PrixUnitaire = produit.Prix
                 };
 
                 lignesCommande.Add(ligneCommande);
 
                 // Update stock
-                produit.Stock -= item.Quantite;
+                produit.Stock -= lignePanier.Quantite;
             }
 
-            // Step 5: CalculerTotal()
+            // Calculate total
             montantTotal = lignesCommande.Sum(l => l.Quantite * l.PrixUnitaire);
 
             // Add shipping if under 50€
@@ -186,7 +178,7 @@ namespace EcommerceDropshipping.Controllers
                 montantTotal += 4.99m;
             }
 
-            // Step 6: CreerNouvelleCommande(client, total, articles)
+            // Create order
             var commande = new Commande
             {
                 Id = Guid.NewGuid(),
@@ -205,18 +197,16 @@ namespace EcommerceDropshipping.Controllers
 
             commande.LignesCommande = lignesCommande;
 
-            // Step 7: SauvegarderEnBase()
+            // Save to database
             await _context.Commandes.AddAsync(commande);
             await _context.SaveChangesAsync();
 
-            // Step 8: Confirmation (IdCommande)
             // Clear cart
-            HttpContext.Session.Remove(PanierSessionKey);
+            await ViderPanierAsync(clientId);
 
             TempData["SuccessMessage"] = "Commande passée avec succès !";
             TempData["CommandeId"] = commande.Id.ToString();
 
-            // Step 9 & 10: AfficherConfirmationSucces & Voir Page de Confirmation
             return RedirectToAction(nameof(Confirmation), new { id = commande.Id });
         }
 
@@ -267,7 +257,7 @@ namespace EcommerceDropshipping.Controllers
                 })
                 .ToListAsync();
 
-            ViewBag.CartCount = GetCartItemCount();
+            ViewBag.CartCount = await ObtenirNombreArticlesAsync(clientId);
             return View(commandes);
         }
 
@@ -308,12 +298,23 @@ namespace EcommerceDropshipping.Controllers
                 }).ToList()
             };
 
-            ViewBag.CartCount = GetCartItemCount();
+            ViewBag.CartCount = await ObtenirNombreArticlesAsync(clientId);
             return View(viewModel);
         }
 
-        private async Task<IActionResult> ReloadCheckoutView(List<PanierItemViewModel> panierItems, Guid clientId)
+        private async Task<IActionResult> ReloadCheckoutView(Guid clientId)
         {
+            var lignesPanier = await ObtenirLignesPanierAvecProduitsAsync(clientId);
+            var panierItems = lignesPanier.Select(lp => new PanierItemViewModel
+            {
+                ProduitId = lp.ProduitId,
+                Titre = lp.Produit.Titre,
+                ImageUrl = lp.Produit.ImageUrl,
+                Prix = lp.Produit.Prix,
+                Quantite = lp.Quantite,
+                StockDisponible = lp.Produit.Stock
+            }).ToList();
+
             var adresses = await _context.Adresses
                 .Where(a => a.ClientId == clientId)
                 .Select(a => new AdresseListItemViewModel
@@ -329,24 +330,86 @@ namespace EcommerceDropshipping.Controllers
 
             var viewModel = new CheckoutViewModel
             {
-                Panier = new PanierViewModel { Items = panierItems },
+                Panier = new PanierViewModel 
+                { 
+                    Items = panierItems,
+                    Total = await CalculerTotalAsync(clientId),
+                    NombreArticles = await ObtenirNombreArticlesAsync(clientId)
+                },
                 AdressesDisponibles = adresses
             };
 
-            ViewBag.CartCount = panierItems.Sum(i => i.Quantite);
+            ViewBag.CartCount = viewModel.Panier.NombreArticles;
             return View(viewModel);
         }
+
+        #region Private Helper Methods (previously in PanierService)
+
+        private async Task<List<LignePanier>> ObtenirLignesPanierAvecProduitsAsync(Guid clientId)
+        {
+            var panier = await _context.Paniers
+                .Include(p => p.LignesPanier)
+                .ThenInclude(lp => lp.Produit)
+                .ThenInclude(pr => pr.Fournisseur)
+                .FirstOrDefaultAsync(p => p.ClientId == clientId);
+
+            return panier?.LignesPanier.ToList() ?? new List<LignePanier>();
+        }
+
+        private async Task<decimal> CalculerTotalAsync(Guid clientId)
+        {
+            var panier = await _context.Paniers
+                .Include(p => p.LignesPanier)
+                .ThenInclude(lp => lp.Produit)
+                .FirstOrDefaultAsync(p => p.ClientId == clientId);
+
+            if (panier == null)
+                return 0;
+
+            return panier.LignesPanier.Sum(lp => lp.Quantite * lp.Produit.Prix);
+        }
+
+        private async Task<int> ObtenirNombreArticlesAsync(Guid clientId)
+        {
+            var panier = await _context.Paniers
+                .Include(p => p.LignesPanier)
+                .FirstOrDefaultAsync(p => p.ClientId == clientId);
+
+            if (panier == null)
+                return 0;
+
+            return panier.LignesPanier.Sum(lp => lp.Quantite);
+        }
+
+        private async Task<bool> ViderPanierAsync(Guid clientId)
+        {
+            try
+            {
+                var panier = await _context.Paniers
+                    .Include(p => p.LignesPanier)
+                    .FirstOrDefaultAsync(p => p.ClientId == clientId);
+
+                if (panier == null)
+                    return true;
+
+                _context.LignesPanier.RemoveRange(panier.LignesPanier);
+                panier.DateModification = DateTime.Now;
+
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        #endregion
 
         private Guid GetClientId()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             return Guid.Parse(userId!);
-        }
-
-        private int GetCartItemCount()
-        {
-            var panier = HttpContext.Session.GetObjectFromJson<List<PanierItemViewModel>>(PanierSessionKey);
-            return panier?.Sum(i => i.Quantite) ?? 0;
         }
     }
 }

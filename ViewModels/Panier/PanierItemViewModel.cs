@@ -10,5 +10,6 @@ namespace EcommerceDropshipping.ViewModels.Panier
         public int StockDisponible { get; set; }
         
         public decimal Total => Prix * Quantite;
+        public decimal SousTotal => Prix * Quantite;
     }
 }

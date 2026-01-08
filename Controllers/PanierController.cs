@@ -1,15 +1,21 @@
+using System;
+using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using EcommerceDropshipping.Data;
+using EcommerceDropshipping.Models.Domain;
 using EcommerceDropshipping.ViewModels.Panier;
-using EcommerceDropshipping.Helpers;
 
 namespace EcommerceDropshipping.Controllers
 {
+    [Authorize]
     public class PanierController : Controller
     {
         private readonly AppDbContext _context;
-        private const string PanierSessionKey = "Panier";
 
         public PanierController(AppDbContext context)
         {
@@ -19,53 +25,24 @@ namespace EcommerceDropshipping.Controllers
         // GET: /Panier
         public async Task<IActionResult> Index()
         {
-            var panierItems = HttpContext.Session.GetObjectFromJson<List<PanierItemViewModel>>(PanierSessionKey) 
-                              ?? new List<PanierItemViewModel>();
-
-            // Refresh product info from database
-            var produitIds = panierItems.Select(i => i.ProduitId).ToList();
-            var produits = await _context.Produits
-                .Where(p => produitIds.Contains(p.Id))
-                .ToDictionaryAsync(p => p.Id);
-
-            // Update cart with current prices and stock
-            foreach (var item in panierItems.ToList())
-            {
-                if (produits.TryGetValue(item.ProduitId, out var produit))
-                {
-                    item.Titre = produit.Titre;
-                    item.Prix = produit.Prix;
-                    item.ImageUrl = produit.ImageUrl;
-                    item.StockDisponible = produit.Stock;
-
-                    // Adjust quantity if stock changed
-                    if (item.Quantite > produit.Stock)
-                    {
-                        item.Quantite = produit.Stock;
-                    }
-                    
-                    // Remove if out of stock
-                    if (produit.Stock <= 0 || !produit.EstActif)
-                    {
-                        panierItems.Remove(item);
-                    }
-                }
-                else
-                {
-                    // Product no longer exists
-                    panierItems.Remove(item);
-                }
-            }
-
-            // Save updated cart
-            HttpContext.Session.SetObjectAsJson(PanierSessionKey, panierItems);
+            var clientId = ObtenirClientId();
+            var lignesPanier = await ObtenirLignesPanierAvecProduitsAsync(clientId);
 
             var viewModel = new PanierViewModel
             {
-                Items = panierItems
+                Items = lignesPanier.Select(lp => new PanierItemViewModel
+                {
+                    ProduitId = lp.ProduitId,
+                    Titre = lp.Produit.Titre,
+                    ImageUrl = lp.Produit.ImageUrl,
+                    Prix = lp.Produit.Prix,
+                    Quantite = lp.Quantite,
+                    StockDisponible = lp.Produit.Stock
+                }).ToList(),
+                Total = await CalculerTotalAsync(clientId),
+                NombreArticles = await ObtenirNombreArticlesAsync(clientId)
             };
 
-            ViewBag.CartCount = panierItems.Sum(i => i.Quantite);
             return View(viewModel);
         }
 
@@ -74,52 +51,23 @@ namespace EcommerceDropshipping.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Ajouter(Guid produitId, int quantite = 1)
         {
-            var produit = await _context.Produits.FindAsync(produitId);
+            var clientId = ObtenirClientId();
+            var succes = await AjouterProduitAsync(clientId, produitId, quantite);
 
-            if (produit == null || !produit.EstActif)
+            if (succes)
             {
-                TempData["ErrorMessage"] = "Produit non disponible";
-                return RedirectToAction("Index", "Produit");
-            }
-
-            if (produit.Stock < quantite)
-            {
-                TempData["ErrorMessage"] = "Stock insuffisant";
-                return RedirectToAction("Details", "Produit", new { id = produitId });
-            }
-
-            var panierItems = HttpContext.Session.GetObjectFromJson<List<PanierItemViewModel>>(PanierSessionKey) 
-                              ?? new List<PanierItemViewModel>();
-
-            var existingItem = panierItems.FirstOrDefault(i => i.ProduitId == produitId);
-
-            if (existingItem != null)
-            {
-                var newQuantity = existingItem.Quantite + quantite;
-                if (newQuantity > produit.Stock)
-                {
-                    TempData["ErrorMessage"] = "Quantité maximale atteinte";
-                    return RedirectToAction("Details", "Produit", new { id = produitId });
-                }
-                existingItem.Quantite = newQuantity;
+                TempData["SuccessMessage"] = "Produit ajouté au panier";
             }
             else
             {
-                panierItems.Add(new PanierItemViewModel
-                {
-                    ProduitId = produit.Id,
-                    Titre = produit.Titre,
-                    Prix = produit.Prix,
-                    ImageUrl = produit.ImageUrl,
-                    Quantite = quantite,
-                    StockDisponible = produit.Stock
-                });
+                TempData["ErrorMessage"] = "Impossible d'ajouter ce produit (stock insuffisant ou produit indisponible)";
             }
 
-            HttpContext.Session.SetObjectAsJson(PanierSessionKey, panierItems);
+            var returnUrl = Request.Headers["Referer"].ToString();
+            if (!string.IsNullOrEmpty(returnUrl))
+                return Redirect(returnUrl);
 
-            TempData["SuccessMessage"] = $"{produit.Titre} ajouté au panier";
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction("Index", "Produit");
         }
 
         // POST: /Panier/Modifier
@@ -127,33 +75,16 @@ namespace EcommerceDropshipping.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Modifier(Guid produitId, int quantite)
         {
-            if (quantite <= 0)
+            var clientId = ObtenirClientId();
+            var succes = await ModifierQuantiteAsync(clientId, produitId, quantite);
+
+            if (succes)
             {
-                return await Supprimer(produitId);
+                TempData["SuccessMessage"] = "Quantité mise à jour";
             }
-
-            var produit = await _context.Produits.FindAsync(produitId);
-
-            if (produit == null)
+            else
             {
-                return RedirectToAction(nameof(Index));
-            }
-
-            if (quantite > produit.Stock)
-            {
-                TempData["ErrorMessage"] = "Stock insuffisant";
-                return RedirectToAction(nameof(Index));
-            }
-
-            var panierItems = HttpContext.Session.GetObjectFromJson<List<PanierItemViewModel>>(PanierSessionKey) 
-                              ?? new List<PanierItemViewModel>();
-
-            var item = panierItems.FirstOrDefault(i => i.ProduitId == produitId);
-
-            if (item != null)
-            {
-                item.Quantite = quantite;
-                HttpContext.Session.SetObjectAsJson(PanierSessionKey, panierItems);
+                TempData["ErrorMessage"] = "Impossible de modifier la quantité (stock insuffisant)";
             }
 
             return RedirectToAction(nameof(Index));
@@ -162,64 +93,226 @@ namespace EcommerceDropshipping.Controllers
         // POST: /Panier/Supprimer
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public Task<IActionResult> Supprimer(Guid produitId)
+        public async Task<IActionResult> Supprimer(Guid produitId)
         {
-            var panierItems = HttpContext.Session.GetObjectFromJson<List<PanierItemViewModel>>(PanierSessionKey) 
-                              ?? new List<PanierItemViewModel>();
+            var clientId = ObtenirClientId();
+            var succes = await SupprimerProduitAsync(clientId, produitId);
 
-            var item = panierItems.FirstOrDefault(i => i.ProduitId == produitId);
-
-            if (item != null)
+            if (succes)
             {
-                panierItems.Remove(item);
-                HttpContext.Session.SetObjectAsJson(PanierSessionKey, panierItems);
-                TempData["SuccessMessage"] = "Article supprimé du panier";
+                TempData["SuccessMessage"] = "Produit retiré du panier";
             }
 
-            return Task.FromResult<IActionResult>(RedirectToAction(nameof(Index)));
+            return RedirectToAction(nameof(Index));
         }
 
         // POST: /Panier/Vider
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Vider()
+        public async Task<IActionResult> Vider()
         {
-            HttpContext.Session.Remove(PanierSessionKey);
+            var clientId = ObtenirClientId();
+            await ViderPanierAsync(clientId);
+
             TempData["SuccessMessage"] = "Panier vidé";
             return RedirectToAction(nameof(Index));
         }
 
-        // GET: /Panier/Count (AJAX)
-        public IActionResult Count()
+        #region Private Helper Methods (previously in PanierService)
+
+        private async Task<Panier> ObtenirOuCreerPanierAsync(Guid clientId)
         {
-            var panierItems = HttpContext.Session.GetObjectFromJson<List<PanierItemViewModel>>(PanierSessionKey) 
-                              ?? new List<PanierItemViewModel>();
-            
-            return Json(new { count = panierItems.Sum(i => i.Quantite) });
-        }
+            var panier = await _context.Paniers
+                .Include(p => p.LignesPanier)
+                .ThenInclude(lp => lp.Produit)
+                .FirstOrDefaultAsync(p => p.ClientId == clientId);
 
-        // GET: /Panier/Mini (for navbar dropdown)
-        public async Task<IActionResult> Mini()
-        {
-            var panierItems = HttpContext.Session.GetObjectFromJson<List<PanierItemViewModel>>(PanierSessionKey) 
-                              ?? new List<PanierItemViewModel>();
-
-            // Refresh prices from DB
-            var produitIds = panierItems.Select(i => i.ProduitId).ToList();
-            var produits = await _context.Produits
-                .Where(p => produitIds.Contains(p.Id))
-                .ToDictionaryAsync(p => p.Id);
-
-            foreach (var item in panierItems)
+            if (panier == null)
             {
-                if (produits.TryGetValue(item.ProduitId, out var produit))
+                panier = new Panier
                 {
-                    item.Prix = produit.Prix;
-                    item.ImageUrl = produit.ImageUrl;
-                }
+                    Id = Guid.NewGuid(),
+                    ClientId = clientId,
+                    DateCreation = DateTime.Now,
+                    DateModification = DateTime.Now
+                };
+
+                await _context.Paniers.AddAsync(panier);
+                await _context.SaveChangesAsync();
             }
 
-            return PartialView("_MiniPanier", new PanierViewModel { Items = panierItems });
+            return panier;
+        }
+
+        private async Task<bool> AjouterProduitAsync(Guid clientId, Guid produitId, int quantite = 1)
+        {
+            try
+            {
+                var produit = await _context.Produits.FindAsync(produitId);
+                if (produit == null || !produit.EstActif)
+                    return false;
+
+                if (produit.Stock < quantite)
+                    return false;
+
+                var panier = await ObtenirOuCreerPanierAsync(clientId);
+
+                var ligneExistante = await _context.LignesPanier
+                    .FirstOrDefaultAsync(lp => lp.PanierId == panier.Id && lp.ProduitId == produitId);
+
+                if (ligneExistante != null)
+                {
+                    int nouvelleQuantite = ligneExistante.Quantite + quantite;
+                    
+                    if (nouvelleQuantite > produit.Stock)
+                        return false;
+
+                    ligneExistante.Quantite = nouvelleQuantite;
+                }
+                else
+                {
+                    var nouvelleLigne = new LignePanier
+                    {
+                        Id = Guid.NewGuid(),
+                        PanierId = panier.Id,
+                        ProduitId = produitId,
+                        Quantite = quantite,
+                        DateAjout = DateTime.Now
+                    };
+
+                    await _context.LignesPanier.AddAsync(nouvelleLigne);
+                }
+
+                panier.DateModification = DateTime.Now;
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task<bool> ModifierQuantiteAsync(Guid clientId, Guid produitId, int nouvelleQuantite)
+        {
+            try
+            {
+                if (nouvelleQuantite < 1)
+                    return false;
+
+                var panier = await ObtenirOuCreerPanierAsync(clientId);
+
+                var ligne = await _context.LignesPanier
+                    .Include(lp => lp.Produit)
+                    .FirstOrDefaultAsync(lp => lp.PanierId == panier.Id && lp.ProduitId == produitId);
+
+                if (ligne == null)
+                    return false;
+
+                if (nouvelleQuantite > ligne.Produit.Stock)
+                    return false;
+
+                ligne.Quantite = nouvelleQuantite;
+                panier.DateModification = DateTime.Now;
+
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task<bool> SupprimerProduitAsync(Guid clientId, Guid produitId)
+        {
+            try
+            {
+                var panier = await ObtenirOuCreerPanierAsync(clientId);
+
+                var ligne = await _context.LignesPanier
+                    .FirstOrDefaultAsync(lp => lp.PanierId == panier.Id && lp.ProduitId == produitId);
+
+                if (ligne == null)
+                    return false;
+
+                _context.LignesPanier.Remove(ligne);
+                panier.DateModification = DateTime.Now;
+
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task<bool> ViderPanierAsync(Guid clientId)
+        {
+            try
+            {
+                var panier = await _context.Paniers
+                    .Include(p => p.LignesPanier)
+                    .FirstOrDefaultAsync(p => p.ClientId == clientId);
+
+                if (panier == null)
+                    return true;
+
+                _context.LignesPanier.RemoveRange(panier.LignesPanier);
+                panier.DateModification = DateTime.Now;
+
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task<decimal> CalculerTotalAsync(Guid clientId)
+        {
+            var panier = await _context.Paniers
+                .Include(p => p.LignesPanier)
+                .ThenInclude(lp => lp.Produit)
+                .FirstOrDefaultAsync(p => p.ClientId == clientId);
+
+            if (panier == null)
+                return 0;
+
+            return panier.LignesPanier.Sum(lp => lp.Quantite * lp.Produit.Prix);
+        }
+
+        private async Task<int> ObtenirNombreArticlesAsync(Guid clientId)
+        {
+            var panier = await _context.Paniers
+                .Include(p => p.LignesPanier)
+                .FirstOrDefaultAsync(p => p.ClientId == clientId);
+
+            if (panier == null)
+                return 0;
+
+            return panier.LignesPanier.Sum(lp => lp.Quantite);
+        }
+
+        private async Task<List<LignePanier>> ObtenirLignesPanierAvecProduitsAsync(Guid clientId)
+        {
+            var panier = await _context.Paniers
+                .Include(p => p.LignesPanier)
+                .ThenInclude(lp => lp.Produit)
+                .ThenInclude(pr => pr.Fournisseur)
+                .FirstOrDefaultAsync(p => p.ClientId == clientId);
+
+            return panier?.LignesPanier.ToList() ?? new List<LignePanier>();
+        }
+
+        #endregion
+
+        private Guid ObtenirClientId()
+        {
+            var clientIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return Guid.Parse(clientIdClaim!);
         }
     }
 }
