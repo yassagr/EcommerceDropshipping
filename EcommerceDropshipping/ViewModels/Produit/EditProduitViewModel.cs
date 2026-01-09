@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace EcommerceDropshipping.ViewModels.Produit
 {
@@ -30,6 +31,9 @@ namespace EcommerceDropshipping.ViewModels.Produit
         [Url(ErrorMessage = "URL invalide")]
         [Display(Name = "URL de l'image")]
         public string? ImageUrl { get; set; }
+
+        [Display(Name = "Importer une image")]
+        public IFormFile? ImageFile { get; set; }
 
         [Required(ErrorMessage = "Le fournisseur est requis")]
         [Display(Name = "Fournisseur")]

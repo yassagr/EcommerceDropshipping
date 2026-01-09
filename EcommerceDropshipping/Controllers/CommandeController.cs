@@ -160,7 +160,9 @@ namespace EcommerceDropshipping.Controllers
                     Id = Guid.NewGuid(),
                     ProduitId = produit.Id,
                     Quantite = lignePanier.Quantite,
-                    PrixUnitaire = produit.Prix
+                    PrixUnitaire = produit.Prix,
+                    ProduitTitre = produit.Titre,
+                    ProduitImage = produit.ImageUrl
                 };
 
                 lignesCommande.Add(ligneCommande);
@@ -291,8 +293,8 @@ namespace EcommerceDropshipping.Controllers
                 Lignes = commande.LignesCommande.Select(l => new LigneCommandeViewModel
                 {
                     ProduitId = l.ProduitId,
-                    ProduitTitre = l.Produit.Titre,
-                    ProduitImage = l.Produit.ImageUrl,
+                    ProduitTitre = l.ProduitTitre,
+                    ProduitImage = l.ProduitImage,
                     Quantite = l.Quantite,
                     PrixUnitaire = l.PrixUnitaire
                 }).ToList()

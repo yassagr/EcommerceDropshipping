@@ -9,7 +9,7 @@ namespace EcommerceDropshipping.Models.Domain
 
         public Guid CommandeId { get; set; }
 
-        public Guid ProduitId { get; set; }
+        public Guid? ProduitId { get; set; }
 
         [Required]
         public int Quantite { get; set; }
@@ -17,12 +17,19 @@ namespace EcommerceDropshipping.Models.Domain
         [Column(TypeName = "decimal(18,2)")]
         public decimal PrixUnitaire { get; set; }
 
+        // Snapshot of product details (preserved even if product is deleted)
+        [StringLength(200)]
+        public string ProduitTitre { get; set; } = string.Empty;
+
+        [StringLength(500)]
+        public string? ProduitImage { get; set; }
+
         // Computed property for total line price
         [NotMapped]
         public decimal Total => Quantite * PrixUnitaire;
 
         // Navigation properties
         public virtual Commande Commande { get; set; } = null!;
-        public virtual Produit Produit { get; set; } = null!;
+        public virtual Produit? Produit { get; set; }
     }
 }

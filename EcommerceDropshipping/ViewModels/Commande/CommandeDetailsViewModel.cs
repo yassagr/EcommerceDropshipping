@@ -44,7 +44,7 @@ namespace EcommerceDropshipping.ViewModels.Commande
     {
         public string ProduitTitre { get; set; } = string.Empty;
         public string? ProduitImage { get; set; }
-        public Guid ProduitId { get; set; }
+        public Guid? ProduitId { get; set; }
         public int Quantite { get; set; }
         public decimal PrixUnitaire { get; set; }
         public decimal Total => Quantite * PrixUnitaire;

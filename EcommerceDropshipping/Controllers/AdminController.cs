@@ -16,10 +16,12 @@ namespace EcommerceDropshipping.Controllers
     public class AdminController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly IWebHostEnvironment _environment;
 
-        public AdminController(AppDbContext context)
+        public AdminController(AppDbContext context, IWebHostEnvironment environment)
         {
             _context = context;
+            _environment = environment;
         }
 
         // GET: /Admin/Dashboard
@@ -62,7 +64,8 @@ namespace EcommerceDropshipping.Controllers
             // Top selling products
             viewModel.ProduitsPopulaires = await _context.LignesCommande
                 .Include(l => l.Produit)
-                .GroupBy(l => new { l.ProduitId, l.Produit.Titre, l.Produit.ImageUrl })
+                .Where(l => l.ProduitId.HasValue && l.Produit != null)
+                .GroupBy(l => new { ProduitId = l.ProduitId!.Value, l.Produit!.Titre, l.Produit.ImageUrl })
                 .Select(g => new ProduitPopulaireViewModel
                 {
                     Id = g.Key.ProduitId,
@@ -121,6 +124,13 @@ namespace EcommerceDropshipping.Controllers
                 return View(model);
             }
 
+            // Handle image: file upload takes priority over URL
+            string? imageUrl = model.ImageUrl;
+            if (model.ImageFile != null && model.ImageFile.Length > 0)
+            {
+                imageUrl = await SaveUploadedImageAsync(model.ImageFile);
+            }
+
             var produit = new Produit
             {
                 Id = Guid.NewGuid(),
@@ -129,7 +139,7 @@ namespace EcommerceDropshipping.Controllers
                 Description = model.Description,
                 Prix = model.Prix,
                 Stock = model.Stock,
-                ImageUrl = model.ImageUrl,
+                ImageUrl = imageUrl,
                 DateAjout = DateTime.Now,
                 EstActif = model.EstActif
             };
@@ -186,11 +196,21 @@ namespace EcommerceDropshipping.Controllers
                 return NotFound();
             }
 
+            // Handle image: file upload takes priority over URL
+            if (model.ImageFile != null && model.ImageFile.Length > 0)
+            {
+                produit.ImageUrl = await SaveUploadedImageAsync(model.ImageFile);
+            }
+            else if (!string.IsNullOrEmpty(model.ImageUrl))
+            {
+                produit.ImageUrl = model.ImageUrl;
+            }
+            // If neither provided, keep existing image
+
             produit.Titre = model.Titre;
             produit.Description = model.Description;
             produit.Prix = model.Prix;
             produit.Stock = model.Stock;
-            produit.ImageUrl = model.ImageUrl;
             produit.FournisseurId = model.FournisseurId;
             produit.EstActif = model.EstActif;
 
@@ -212,16 +232,32 @@ namespace EcommerceDropshipping.Controllers
                 return NotFound();
             }
 
-            // Check if product has orders
-            var hasOrders = await _context.LignesCommande.AnyAsync(l => l.ProduitId == id);
-            if (hasOrders)
+            // Check if product has active orders (not Livree or Annulee)
+            var hasActiveOrders = await _context.LignesCommande
+                .Include(l => l.Commande)
+                .AnyAsync(l => l.ProduitId == id && 
+                    l.Commande.Statut != Models.Domain.Enums.StatutCommande.Livree && 
+                    l.Commande.Statut != Models.Domain.Enums.StatutCommande.Annulee);
+
+            if (hasActiveOrders)
             {
-                // Soft delete - just deactivate
+                // Cannot delete - has active orders
                 produit.EstActif = false;
-                TempData["WarningMessage"] = "Le produit a été désactivé car il a des commandes associées";
+                TempData["WarningMessage"] = "Le produit a été désactivé car il a des commandes en cours";
             }
             else
             {
+                // Can delete - all orders are Livree or Annulee
+                // Set ProduitId to null in order lines (product info is preserved in ProduitTitre/ProduitImage)
+                var lignesCommande = await _context.LignesCommande
+                    .Where(l => l.ProduitId == id)
+                    .ToListAsync();
+
+                foreach (var ligne in lignesCommande)
+                {
+                    ligne.ProduitId = null;
+                }
+
                 _context.Produits.Remove(produit);
                 TempData["SuccessMessage"] = "Produit supprimé avec succès";
             }
@@ -425,8 +461,8 @@ namespace EcommerceDropshipping.Controllers
                 Lignes = commande.LignesCommande.Select(l => new LigneCommandeViewModel
                 {
                     ProduitId = l.ProduitId,
-                    ProduitTitre = l.Produit.Titre,
-                    ProduitImage = l.Produit.ImageUrl,
+                    ProduitTitre = l.ProduitTitre,
+                    ProduitImage = l.ProduitImage,
                     Quantite = l.Quantite,
                     PrixUnitaire = l.PrixUnitaire
                 }).ToList()
@@ -464,6 +500,29 @@ namespace EcommerceDropshipping.Controllers
                 .ToListAsync();
 
             ViewBag.Fournisseurs = new SelectList(fournisseurs, "Id", "Nom");
+        }
+
+        private async Task<string> SaveUploadedImageAsync(IFormFile imageFile)
+        {
+            // Create uploads folder if it doesn't exist
+            var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "products");
+            if (!Directory.Exists(uploadsFolder))
+            {
+                Directory.CreateDirectory(uploadsFolder);
+            }
+
+            // Generate unique filename
+            var uniqueFileName = $"{Guid.NewGuid()}_{Path.GetFileName(imageFile.FileName)}";
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            // Save the file
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await imageFile.CopyToAsync(stream);
+            }
+
+            // Return the URL path
+            return $"/uploads/products/{uniqueFileName}";
         }
     }
 }

@@ -176,8 +176,17 @@ namespace EcommerceDropshipping.Migrations
                     b.Property<decimal>("PrixUnitaire")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<Guid>("ProduitId")
+                    b.Property<Guid?>("ProduitId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ProduitImage")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ProduitTitre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<int>("Quantite")
                         .HasColumnType("int");
@@ -333,8 +342,7 @@ namespace EcommerceDropshipping.Migrations
                     b.HasOne("EcommerceDropshipping.Models.Domain.Produit", "Produit")
                         .WithMany("LignesCommande")
                         .HasForeignKey("ProduitId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Commande");
 
